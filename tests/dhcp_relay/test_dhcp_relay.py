@@ -17,7 +17,7 @@ from tests.common.platform.processes_utils import wait_critical_processes
 from tests.common.utilities import wait_until
 
 pytestmark = [
-    pytest.mark.topology('t0'),
+    pytest.mark.topology('t0', 'm0'),
     pytest.mark.device_type('vs')
 ]
 
@@ -59,6 +59,9 @@ def dut_dhcp_relay_data(duthosts, rand_one_dut_hostname, ptfhost, tbinfo):
     # SONiC spawns one DHCP relay agent per VLAN interface configured on the DUT
     vlan_dict = mg_facts['minigraph_vlans']
     for vlan_iface_name, vlan_info_dict in vlan_dict.items():
+        # Filter(remove) PortChannel interfaces from VLAN members list
+        vlan_members = [port for port in vlan_info_dict['members'] if 'PortChannel' not in port]
+
         # Gather information about the downlink VLAN interface this relay agent is listening on
         downlink_vlan_iface = {}
         downlink_vlan_iface['name'] = vlan_iface_name
@@ -77,7 +80,7 @@ def dut_dhcp_relay_data(duthosts, rand_one_dut_hostname, ptfhost, tbinfo):
 
         # We choose the physical interface where our DHCP client resides to be index of first interface with alias (ignore PortChannel) in the VLAN
         client_iface = {}
-        for port in vlan_info_dict['members']:
+        for port in vlan_members:
             if port in mg_facts['minigraph_port_name_to_alias_map']:
                 break
         else:
@@ -92,7 +95,7 @@ def dut_dhcp_relay_data(duthosts, rand_one_dut_hostname, ptfhost, tbinfo):
         for iface_name, neighbor_info_dict in mg_facts['minigraph_neighbors'].items():
             if neighbor_info_dict['name'] in mg_facts['minigraph_devices']:
                 neighbor_device_info_dict = mg_facts['minigraph_devices'][neighbor_info_dict['name']]
-                if 'type' in neighbor_device_info_dict and neighbor_device_info_dict['type'] == 'LeafRouter':
+                if 'type' in neighbor_device_info_dict and neighbor_device_info_dict['type'] in ['LeafRouter', 'MgmtLeafRouter']:
                     # If this uplink's physical interface is a member of a portchannel interface,
                     # we record the name of the portchannel interface here, as this is the actual
                     # interface the DHCP relay will listen on.
@@ -109,7 +112,7 @@ def dut_dhcp_relay_data(duthosts, rand_one_dut_hostname, ptfhost, tbinfo):
                     uplink_port_indices.append(mg_facts['minigraph_ptf_indices'][iface_name])
 
         other_client_ports_indices = []
-        for iface_name in vlan_info_dict['members'] :
+        for iface_name in vlan_members:
             if mg_facts['minigraph_ptf_indices'][iface_name] == client_iface['port_idx']:
                 pass
             else :
@@ -156,7 +159,7 @@ def check_routes_to_dhcp_server(duthost, dut_dhcp_relay_data):
                 logger.info("Found route to DHCP server via default GW(MGMT interface)")
                 return False
     return True
-        
+
 
 @pytest.fixture(scope="module")
 def validate_dut_routes_exist(duthosts, rand_one_dut_hostname, dut_dhcp_relay_data):
@@ -233,7 +236,7 @@ def testing_config(request, duthosts, rand_one_dut_hostname, tbinfo):
             restart_dhcp_service(duthost)
 
 def check_interface_status(duthost):
-    if ":67" in duthost.shell("docker exec -it dhcp_relay ss -nlp | grep dhcrelay", module_ignore_errors=True)["stdout"].encode("utf-8"):
+    if ":67" in duthost.shell("docker exec -it dhcp_relay ss -nlp | grep dhcrelay", module_ignore_errors=True)["stdout"]:
         return True
 
     return False
@@ -245,7 +248,7 @@ def test_interface_binding(duthosts, rand_one_dut_hostname, dut_dhcp_relay_data)
         config_reload(duthost)
         wait_critical_processes(duthost)
         pytest_assert(wait_until(120, 5, 0, check_interface_status, duthost))
-    output = duthost.shell("docker exec -it dhcp_relay ss -nlp | grep dhcrelay", module_ignore_errors=True)["stdout"].encode("utf-8")
+    output = duthost.shell("docker exec -it dhcp_relay ss -nlp | grep dhcrelay", module_ignore_errors=True)["stdout"]
     logger.info(output)
     for dhcp_relay in dut_dhcp_relay_data:
         assert "{}:67".format(dhcp_relay['downlink_vlan_iface']['name']) in output, "{} is not found in {}".format("{}:67".format(dhcp_relay['downlink_vlan_iface']['name']), output)
@@ -285,7 +288,7 @@ def test_dhcp_relay_default(ptfhost, dut_dhcp_relay_data, validate_dut_routes_ex
                            "uplink_mac": str(dhcp_relay['uplink_mac']),
                            "testbed_mode": testbed_mode,
                            "testing_mode": testing_mode},
-                   log_file="/tmp/dhcp_relay_test.DHCPTest.log")
+                   log_file="/tmp/dhcp_relay_test.DHCPTest.log", is_python3=True)
 
 
 def test_dhcp_relay_after_link_flap(ptfhost, dut_dhcp_relay_data, validate_dut_routes_exist, testing_config):
@@ -312,7 +315,7 @@ def test_dhcp_relay_after_link_flap(ptfhost, dut_dhcp_relay_data, validate_dut_r
         # Bring all uplink interfaces back up
         for iface in dhcp_relay['uplink_interfaces']:
             duthost.shell('ifconfig {} up'.format(iface))
-            
+
         # Wait until uplinks are up and routes are recovered
         pytest_assert(wait_until(50, 5, 0, check_routes_to_dhcp_server, duthost, dut_dhcp_relay_data),
                       "Not all DHCP servers are routed")
@@ -337,7 +340,7 @@ def test_dhcp_relay_after_link_flap(ptfhost, dut_dhcp_relay_data, validate_dut_r
                            "uplink_mac": str(dhcp_relay['uplink_mac']),
                            "testbed_mode": testbed_mode,
                            "testing_mode": testing_mode},
-                   log_file="/tmp/dhcp_relay_test.DHCPTest.log")
+                   log_file="/tmp/dhcp_relay_test.DHCPTest.log", is_python3=True)
 
 
 def test_dhcp_relay_start_with_uplinks_down(ptfhost, dut_dhcp_relay_data, validate_dut_routes_exist, testing_config):
@@ -400,7 +403,7 @@ def test_dhcp_relay_start_with_uplinks_down(ptfhost, dut_dhcp_relay_data, valida
                            "uplink_mac": str(dhcp_relay['uplink_mac']),
                            "testbed_mode": testbed_mode,
                            "testing_mode": testing_mode},
-                   log_file="/tmp/dhcp_relay_test.DHCPTest.log")
+                   log_file="/tmp/dhcp_relay_test.DHCPTest.log", is_python3=True)
 
 
 def test_dhcp_relay_unicast_mac(ptfhost, dut_dhcp_relay_data, validate_dut_routes_exist, testing_config, toggle_all_simulator_ports_to_rand_selected_tor_m):
@@ -436,7 +439,7 @@ def test_dhcp_relay_unicast_mac(ptfhost, dut_dhcp_relay_data, validate_dut_route
                            "uplink_mac": str(dhcp_relay['uplink_mac']),
                            "testbed_mode": testbed_mode,
                            "testing_mode": testing_mode},
-                   log_file="/tmp/dhcp_relay_test.DHCPTest.log")
+                   log_file="/tmp/dhcp_relay_test.DHCPTest.log", is_python3=True)
 
 
 def test_dhcp_relay_random_sport(ptfhost, dut_dhcp_relay_data, validate_dut_routes_exist, testing_config, toggle_all_simulator_ports_to_rand_selected_tor_m):
@@ -471,4 +474,4 @@ def test_dhcp_relay_random_sport(ptfhost, dut_dhcp_relay_data, validate_dut_rout
                            "uplink_mac": str(dhcp_relay['uplink_mac']),
                            "testbed_mode": testbed_mode,
                            "testing_mode": testing_mode},
-                   log_file="/tmp/dhcp_relay_test.DHCPTest.log")
+                   log_file="/tmp/dhcp_relay_test.DHCPTest.log", is_python3=True)

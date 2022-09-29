@@ -5,6 +5,10 @@ import json
 
 from fwutil_common import call_fwutil, show_firmware, upload_platform, find_pattern
 
+pytestmark = [
+    pytest.mark.topology("any")
+]
+
 DEVICES_PATH="/usr/share/sonic/device"
 
 def test_fwutil_show(duthost):
@@ -21,8 +25,9 @@ def test_fwutil_show(duthost):
 
     show_fw_comp_set = set(versions["chassis"][chassis]["component"].keys())
     platform_comp_set = set(platform_comp["chassis"][chassis]["component"].keys())
+    comp = show_fw_comp_set == platform_comp_set
 
-    assert show_fw_comp_set == platform_comp_set
+    assert comp
 
 def test_fwutil_install_file(duthost, localhost, pdu_controller, fw_pkg, random_component):
     """Tests manually installing firmware to a component from a file."""
@@ -107,12 +112,12 @@ def test_fwutil_update_bad_config(duthost, fw_pkg, random_component):
     assert found_bad_component
 
 
-@pytest.mark.parametrize("reboot_type", ["none", "warm", "fast", "cold", "power off"])
+@pytest.mark.parametrize("reboot_type", ["none", "cold"])
 def test_fwutil_auto(duthost, localhost, pdu_controller, fw_pkg, reboot_type):
     """Tests fwutil update all command ability to properly select firmware for install based on boot type."""
     assert call_fwutil(duthost,
             localhost,
             pdu_controller,
             fw_pkg,
-            reboot=reboot_type)
+            boot=reboot_type)
 

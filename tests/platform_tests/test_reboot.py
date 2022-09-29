@@ -5,7 +5,7 @@ Check platform status after reboot. Three types of reboot are covered in this sc
 * Warm reboot
 
 This script is to cover the test case 'Reload configuration' in the SONiC platform test plan:
-https://github.com/Azure/SONiC/blob/master/doc/pmon/sonic_platform_test_plan.md
+https://github.com/sonic-net/SONiC/blob/master/doc/pmon/sonic_platform_test_plan.md
 """
 import logging
 import re
@@ -100,8 +100,6 @@ def check_interfaces_and_services(dut, interfaces, xcvr_skip_list, reboot_type =
         logging.info("Wait {} seconds for all the transceivers to be detected".format(MAX_WAIT_TIME_FOR_INTERFACES))
         result = wait_until(MAX_WAIT_TIME_FOR_INTERFACES, 20, 0, check_all_interface_information, dut, interfaces,
                             xcvr_skip_list)
-        if not dut.has_sku:
-            pytest.xfail("hwsku.json is needed for interface checking to pass, and it is not provided.")
         assert result, "Not all transceivers are detected or interfaces are up in {} seconds".format(
             MAX_WAIT_TIME_FOR_INTERFACES)
 

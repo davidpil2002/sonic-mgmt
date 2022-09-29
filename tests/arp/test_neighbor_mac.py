@@ -3,7 +3,6 @@ import pytest
 import time
 
 from tests.common.helpers.assertions import pytest_assert
-from tests.common.config_reload import config_reload
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +41,7 @@ class TestNeighborMac:
 
         logger.info("Restore the DUT interface config, remove IP address")
         self.__configureInterfaceIp(duthost, action="remove")
+        self.__shutdownInterface(duthost)
 
     @pytest.fixture(params=[0, 1])
     def macIndex(self, request):
@@ -89,6 +89,24 @@ class TestNeighborMac:
             "config",
             "interface",
             "startup",
+            self.DUT_ETH_IF
+        ])
+
+    def __shutdownInterface(self, duthost):
+        """
+            Shutdown the interface on the DUT
+
+            Args:
+                duthost (AnsibleHost): Device Under Test (DUT)
+
+            Returns:
+                None
+        """
+        logger.info("Configure the interface '{0}' as DOWN".format(self.DUT_ETH_IF))
+        duthost.shell(argv=[
+            "config",
+            "interface",
+            "shutdown",
             self.DUT_ETH_IF
         ])
 

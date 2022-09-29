@@ -6,7 +6,7 @@ from tests.common.helpers.assertions import pytest_assert
 from tests.common.fixtures.ptfhost_utils import copy_ptftests_directory   # lgtm [py/unused-import]
 
 pytestmark = [
-    pytest.mark.topology('t0', 't0-56-po2vlan')
+    pytest.mark.topology('t0', 't0-56-po2vlan', 'm0')
 ]
 
 logger = logging.getLogger(__name__)
@@ -91,9 +91,9 @@ class TestFdbMacExpire:
         """
         logger.info("Running PTF test case '{0}' on '{1}'".format(testCase, ptfhost.hostname))
         ptfhost.shell(argv=[
-            "ptf",
+            "/root/env-python3/bin/ptf",
             "--test-dir",
-            "ptftests",
+            "ptftests/py3",
             testCase,
             "--platform-dir",
             "ptftests",
@@ -221,11 +221,6 @@ class TestFdbMacExpire:
             Returns:
                 None
         """
-        if "t0" not in tbinfo["topo"]["type"]:
-            pytest.skip(
-                "FDB MAC Expire test case is not supported on this DUT topology '{0}'".format(tbinfo["topo"]["type"])
-            )
-
         fdbAgingTime = request.config.getoption('--fdb_aging_time')
 
         testParams = {

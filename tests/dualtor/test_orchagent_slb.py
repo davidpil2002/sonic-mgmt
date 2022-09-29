@@ -13,6 +13,7 @@ from tests.common.dualtor.dual_tor_utils import lower_tor_host
 from tests.common.dualtor.dual_tor_utils import get_t1_ptf_ports
 from tests.common.dualtor.dual_tor_utils import force_active_tor                                                # lgtm[py/unused-import]
 from tests.common.dualtor.mux_simulator_control import toggle_all_simulator_ports_to_upper_tor
+from tests.common.dualtor.dual_tor_common import cable_type 
 from tests.common.dualtor.server_traffic_utils import ServerTrafficMonitor
 from tests.common.dualtor.tunnel_traffic_utils import tunnel_traffic_monitor
 from tests.common.fixtures.ptfhost_utils import run_icmp_responder
@@ -245,7 +246,12 @@ def test_orchagent_slb(
         else:
             tunnel_innner_pkt = pkt[scapyall.IPv6].copy()
             tunnel_innner_pkt[scapyall.IPv6].hlim -= 1
-        tunnel_monitor = tunnel_traffic_monitor(duthost, existing=is_tunnel_traffic_existed, inner_packet=tunnel_innner_pkt)
+        tunnel_monitor = tunnel_traffic_monitor(
+            duthost,
+            existing=is_tunnel_traffic_existed,
+            inner_packet=tunnel_innner_pkt,
+            check_items=["ttl", "queue"]
+        )
         server_traffic_monitor = ServerTrafficMonitor(
             duthost, ptfhost, vmhost, tbinfo, connection["test_intf"],
             conn_graph_facts, exp_pkt, existing=is_server_traffic_existed
