@@ -564,7 +564,7 @@ platform_tests/broadcom:
   skip:
     reason: "Marvell devices does not support platform_tests/broadcom"
     conditions:
-      - "asic_type in ['marvell']"
+      - "'marvell' in asic_type"
 
 #######################################
 #####  cli/test_show_platform.py  #####
@@ -611,7 +611,7 @@ platform_tests/mellanox:
   skip:
     reason: "Marvell devices does not support platform_tests/mellanox"
     conditions:
-      - "asic_type in ['marvell']"
+      - "'marvell' in asic_type"
 
 #######################################
 #####    test_platform_info.py    #####
@@ -663,7 +663,7 @@ platform_tests/test_reboot.py::test_power_off_reboot:
   skip:
     reason: "Skip power off reboot test for Wistron/Nokia-7215"
     conditions:
-      - "hwsku in ['Celestica-E1031-T48S4'] or 'sw_to3200k' in hwsku or platform in ['armhf-nokia_ixs7215_52x-r0']"
+      - "(hwsku in ['Celestica-E1031-T48S4']) or ('sw_to3200k' in hwsku) or (platform in ['armhf-nokia_ixs7215_52x-r0']) or (is_multi_asic==True and release in ['201911'])"
 
 platform_tests/test_reboot.py::test_soft_reboot:
   skip:
@@ -702,3 +702,12 @@ platform_tests/test_reload_config.py:
 platform_tests/test_sequential_restart.py::test_restart_syncd:
   skip:
     reason: "Restarting syncd is not supported yet"
+
+#######################################
+####  test_memory_exhaustion.py   #####
+#######################################
+platform_tests/test_memory_exhaustion.py:
+  skip:
+    reason: "Unsupported release 20191130"
+    conditions:
+      - "is_multi_asic==True and release in ['201911']"
